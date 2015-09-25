@@ -36,9 +36,12 @@ public class Server extends Thread {
         run(serverSocket);
     }
 
-    public void stopServer(){
-        for (Connector connector : connectors){
-            connector.disconnect = true;
+    public void stopServer() {
+        synchronized (connectors) {
+            for (Connector connector : connectors) {
+                serverWindow.writeInChat(connector.getConnectorName() + " disconnected\n");
+                connector.disconnect();
+            }
         }
         connectors.clear();
         try {
@@ -65,11 +68,10 @@ public class Server extends Thread {
                 connector.start();
             }
         } catch (SocketException e) {
-            serverWindow.chat.append("The server shutdown\n");
-
+            serverWindow.writeInChat("The server shutdown\n");
         } catch (IOException e) {
             e.printStackTrace();
-            serverWindow.chat.append("The server shutdown unexpectedly\n");
+            serverWindow.writeInChat("The server shutdown unexpectedly\n");
         } finally {
             try {
                 listener.close();
@@ -81,11 +83,10 @@ public class Server extends Thread {
 
 
     private static class Connector extends Thread {
-        private String name;
+        private String connectorName;
         private Socket socket;
         private BufferedReader in;
         private PrintWriter out;
-        private boolean disconnect = false;
 
         public Connector(Socket socket) {
             this.socket = socket;
@@ -95,11 +96,19 @@ public class Server extends Thread {
             synchronized (writers) {
                 if (!writers.containsKey(name)) {
                     writers.put(name, out);
-                    serverWindow.chat.append(name + " connected" + "\n");
+                    serverWindow.writeInChat(name + " connected" + "\n");
                     return true;
                 }
             }
             return false;
+        }
+
+        public void disconnect() {
+            if (out != null) {
+                writers.remove(connectorName);
+                out.println("DISCONNECT");
+            }
+
         }
 
         public void run() {
@@ -117,7 +126,7 @@ public class Server extends Thread {
                             break BASE;
                         }
                         if (line.startsWith("TO")) {
-                            if (name == null) {
+                            if (connectorName == null) {
                                 out.println("SUBMITNAME");
                                 break BASE;
                             }
@@ -127,24 +136,21 @@ public class Server extends Thread {
                                 break BASE;
                             }
                             //receiver
-                            writers.get(receiver).println("MESSAGE FROM " + name + " " + line);
+                            writers.get(receiver).println("MESSAGE FROM " + connectorName + " " + line);
                             //sender
-                            out.println("MESSAGE FROM " + name + " " + line);
-                            serverWindow.chat.append("FROM " + name + " " + line + "\n");
+                            out.println("MESSAGE FROM " + connectorName + " " + line);
+                            serverWindow.writeInChat("FROM " + connectorName + " " + line + "\n");
                         } else if (line.startsWith("NAME")) {
                             String name = line.substring(5);
                             if (getValidName(name)) {
-                                this.name = name;
+                                this.connectorName = name;
                                 out.println("NAMEACCEPTED");
                                 break BASE;
                             }
                             out.println("SUBMITNAME");
                         } else if (line.startsWith("DISCONNECT")) {
                             out.println("DISCONNECT");
-                            serverWindow.chat.append(name + " disconnected\n");
-                            break;
-                        } else if (disconnect) {
-                            out.println("DISCONNECT");
+                            serverWindow.writeInChat(connectorName + " disconnected\n");
                             break;
                         }
                     }
@@ -153,7 +159,7 @@ public class Server extends Thread {
                 System.out.println(e);
             } finally {
                 if (out != null) {
-                    writers.remove(name);
+                    writers.remove(connectorName);
                 }
                 try {
                     in.close();
@@ -163,6 +169,10 @@ public class Server extends Thread {
                     e.printStackTrace();
                 }
             }
+        }
+
+        public String getConnectorName() {
+            return connectorName;
         }
     }
 }

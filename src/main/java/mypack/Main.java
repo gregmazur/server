@@ -2,6 +2,8 @@ package mypack;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Created by greg on 25.09.15.
@@ -18,7 +20,8 @@ public class Main {
         ServerSocket serverSocket = new ServerSocket(9001);
         serverWindow.chat.append("Server started\n");
         Server server = new Server(serverWindow, serverSocket);
-        server.start();
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        executor.execute(server);
         serverWindow.start();
         while (true) {
             try {
@@ -28,17 +31,15 @@ public class Main {
             }
             if (!isOn) {
                 if (connectionNeeded) {
-                    serverWindow.chat.append("Server started\n");
+                    serverWindow.writeInChat("Server started\n");
                     server = new Server(serverWindow, new ServerSocket(9001));
-                    server.start();
+                    executor.execute(server);
                     connectionNeeded = false;
                     isOn = true;
                 }
             } else {
                 if (closing) {
                     server.stopServer();
-                    server.interrupt();
-                    server = null;
                     closing = false;
                     isOn = false;
                 }

@@ -37,6 +37,9 @@ public class ServerWindow extends Thread {
             }
         });
     }
+    public void writeInChat(String text){
+        chat.append(text);
+    }
 }
 
 
