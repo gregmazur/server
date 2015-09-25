@@ -4,9 +4,6 @@ package mypack;
  * Created by greg on 22.09.15.
  */
 
-import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -17,82 +14,43 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class Server {
+public class Server extends Thread {
 
     private static final int PORT = 9001;
     private static HashMap<String, PrintWriter> writers = new HashMap<>();
+    private static ServerWindow serverWindow = null;
 
 
-    private JFrame frame = new JFrame("Server");
-    private static JTextArea chat = new JTextArea(8, 40);
-    private JButton connectButton = new JButton("Connect/Disconnect");
-    private static int status;
-    private static final int DISCONNECTED = 0;
-    private static final int WORKING = 1;
-    private static final int CONNECTING = 2;
-    private static final int DISCONNECTING = 3;
     private static ArrayList<Connector> connectors = new ArrayList<>();
+    private ServerSocket serverSocket;
 
+    public Server(ServerWindow serverWindow, ServerSocket serverSocket) {
+        this.serverWindow = serverWindow;
+        this.serverSocket = serverSocket;
 
-    Server() throws IOException {
-        status = CONNECTING;
-        chat.setEditable(false);
-        frame.getContentPane().add(new JScrollPane(chat), "Center");
-        frame.getContentPane().add(connectButton, "South");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setVisible(true);
-        frame.pack();
-        chat.append("The server has started\n");
-        connectButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                switch (status) {
-                    case DISCONNECTED: {
-                        status = CONNECTING;
-                        chat.append("The server has started\n");
-                        break;
-                    }
-                    case WORKING: {
-                        status = DISCONNECTING;
-                        break;
-                    }
-                }
-
-            }
-        });
     }
 
-//    private void warning(String message) {
-//        JOptionPane.showMessageDialog(frame, message);
-//    }
+    @Override
+    public void run() {
+        super.run();
+        run(serverSocket);
+    }
 
-    public static void main(String[] args) throws Exception {
-        Server server = new Server();
-        ServerSocket listener = null;
+
+    public void run(ServerSocket serverSocket) {
+        ServerSocket listener = serverSocket;
         try {
             while (true) {
-                if (WORKING == status) {
-                    Connector connector = new Connector(listener.accept());
-                    connectors.add(connector);
-                    connector.start();
-                } else if (CONNECTING == status) {
-                    listener = new ServerSocket(PORT);
-                    status = WORKING;
-                } else if (DISCONNECTING == status) {
-                    for (Connector connector : connectors) {
-                        connector.disconnect = true;
-                    }
-                    status = DISCONNECTED;
-                    connectors.clear();
-                    listener.close();
-                    chat.append("The server shutdown\n");
-                }
+                Connector connector = new Connector(serverSocket.accept());
+                connectors.add(connector);
+                connector.start();
             }
-
         } catch (SocketException e) {
-            chat.append("The server shutdown unexpectedly\n");
-            status = DISCONNECTED;
+            serverWindow.chat.append("The server shutdown unexpectedly\n");
 
+        } catch (IOException e) {
+            e.printStackTrace();
+            serverWindow.chat.append("The server shutdown unexpectedly\n");
         } finally {
             try {
                 listener.close();
@@ -118,7 +76,7 @@ public class Server {
             synchronized (writers) {
                 if (!writers.containsKey(name)) {
                     writers.put(name, out);
-                    chat.append(name + " connected" + "\n");
+                    serverWindow.chat.append(name + " connected" + "\n");
                     return true;
                 }
             }
@@ -153,7 +111,7 @@ public class Server {
                             writers.get(receiver).println("MESSAGE FROM " + name + " " + line);
                             //sender
                             out.println("MESSAGE FROM " + name + " " + line);
-                            chat.append("FROM " + name + " " + line + "\n");
+                            serverWindow.chat.append("FROM " + name + " " + line + "\n");
                         } else if (line.startsWith("NAME")) {
                             String name = line.substring(5);
                             if (getValidName(name)) {
@@ -164,7 +122,7 @@ public class Server {
                             out.println("SUBMITNAME");
                         } else if (line.startsWith("DISCONNECT")) {
                             out.println("DISCONNECT");
-                            chat.append(name + " disconnected\n");
+                            serverWindow.chat.append(name + " disconnected\n");
                             break;
                         } else if (disconnect) {
                             out.println("DISCONNECT");
