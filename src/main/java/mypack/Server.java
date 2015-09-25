@@ -36,6 +36,25 @@ public class Server extends Thread {
         run(serverSocket);
     }
 
+    public void stopServer(){
+        for (Connector connector : connectors){
+            connector.disconnect = true;
+        }
+        connectors.clear();
+        try {
+            Thread.sleep(10);
+            serverSocket.close();
+            Thread.sleep(100);
+            Thread.currentThread().interrupt();
+            return;
+        } catch (IOException e) {
+            e.printStackTrace();
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            e.printStackTrace();
+        }
+    }
 
     public void run(ServerSocket serverSocket) {
         ServerSocket listener = serverSocket;
@@ -46,7 +65,7 @@ public class Server extends Thread {
                 connector.start();
             }
         } catch (SocketException e) {
-            serverWindow.chat.append("The server shutdown unexpectedly\n");
+            serverWindow.chat.append("The server shutdown\n");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -141,6 +160,7 @@ public class Server extends Thread {
                     out.close();
                     socket.close();
                 } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         }
