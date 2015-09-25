@@ -29,8 +29,8 @@ public class Main {
             if (!isOn) {
                 if (connectionNeeded) {
                     serverWindow.chat.append("Server started\n");
-                    server = new Server(serverWindow, serverSocket);
-                    server.run();
+                    server = new Server(serverWindow, new ServerSocket(9001));
+                    server.start();
                     connectionNeeded = false;
                     isOn = true;
                 }
