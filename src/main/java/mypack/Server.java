@@ -16,7 +16,6 @@ import java.util.HashMap;
 
 public class Server extends Thread {
 
-    private static final int PORT = 9001;
     private static HashMap<String, PrintWriter> writers = new HashMap<>();
     private static ServerWindow serverWindow = null;
 
